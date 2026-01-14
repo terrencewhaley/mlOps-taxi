@@ -1,1 +1,4 @@
-artificats/
+artifacts/
+training/.venv/
+__pycache__/
+*.pyc
