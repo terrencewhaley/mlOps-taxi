@@ -7,12 +7,15 @@ from datetime import datetime, timezone
 import joblib
 import numpy as np
 import pandas as pd
+import mlflow
+import mlflow.sklearn
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
+
 
 from features import build_features
 
@@ -112,7 +115,6 @@ def main():
     df = pd.read_csv(args.data)
     df = df.rename(columns=COLUMN_MAP)
 
-
     missing = [c for c in RAW_REQUIRED if c not in df.columns]
     if missing:
         raise ValueError(
@@ -149,14 +151,37 @@ def main():
     )
 
     pipe = Pipeline([("pre", pre), ("model", model)])
-    pipe.fit(X_train, y_train)
 
-    preds = pipe.predict(X_test)
-    rmse = float(np.sqrt(mean_squared_error(y_test, preds)))
-    mae = float(mean_absolute_error(y_test, preds))
-    r2 = float(r2_score(y_test, preds))
+    mlflow.set_tracking_uri("sqlite:////Users/twhaley/Desktop/mlOps-taxi/mlflow.db")
+    mlflow.set_experiment("nyc-taxi-fare-prediction")
 
-    # Artifacts
+    with mlflow.start_run(run_name=run_id):
+        pipe.fit(X_train, y_train)
+
+        preds = pipe.predict(X_test)
+        rmse = float(np.sqrt(mean_squared_error(y_test, preds)))
+        mae = float(mean_absolute_error(y_test, preds))
+        r2 = float(r2_score(y_test, preds))
+
+        # Log parameters
+        mlflow.log_param("max_depth", 6)
+        mlflow.log_param("learning_rate", 0.1)
+        mlflow.log_param("max_iter", 200)
+        mlflow.log_param("test_size", args.test_size)
+        mlflow.log_param("seed", args.seed)
+
+        # Log metrics
+        mlflow.log_metric("rmse", rmse)
+        mlflow.log_metric("mae", mae)
+        mlflow.log_metric("r2", r2)
+
+        # Log model
+        mlflow.sklearn.log_model(pipe, "model")
+
+        print(f"Run complete: {run_id}")
+        print(f"RMSE: {rmse:.4f} | MAE: {mae:.4f} | R2: {r2:.4f}")
+
+    # Still save artifacts locally as before
     joblib.dump(pipe, os.path.join(out_dir, "model.joblib"))
 
     metrics = {
@@ -174,23 +199,6 @@ def main():
 
     with open(os.path.join(out_dir, "feature_schema.json"), "w") as f:
         json.dump(FEATURE_SCHEMA, f, indent=2)
-
-    run_config = {
-        "run_id": run_id,
-        "data_file": os.path.basename(args.data),
-        "target": "Fare_amount",
-        "test_size": args.test_size,
-        "seed": args.seed,
-        "model": "HistGradientBoostingRegressor",
-        "features_module": "training/features.py",
-        "notes": "Step 1 baseline local training; intended to be reused inside SageMaker training job.",
-    }
-    with open(os.path.join(out_dir, "run_config.json"), "w") as f:
-        json.dump(run_config, f, indent=2)
-
-    print(f"✅ Run complete: {run_id}")
-    print(json.dumps(metrics, indent=2))
-
 
 if __name__ == "__main__":
     main()
