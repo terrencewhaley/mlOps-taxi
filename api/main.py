@@ -11,7 +11,7 @@ from features import build_features
 
 app = FastAPI()
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'artifacts', 'd17020d3-286b-47c9-b896-b8794b4c318c', 'model.joblib')
+MODEL_PATH = os.environ.get("MODEL_PATH", os.path.join(os.path.dirname(__file__), '..', 'artifacts', 'd17020d3-286b-47c9-b896-b8794b4c318c', 'model.joblib'))
 model = joblib.load(MODEL_PATH)
 
 class TripRequest(BaseModel):

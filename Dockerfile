@@ -8,7 +8,6 @@ RUN pip install --no-cache-dir fastapi uvicorn
 
 COPY training/ ./training/
 COPY api/ ./api/
-COPY artifacts/ ./artifacts/
 
 ENV PYTHONPATH=/app/training
 
