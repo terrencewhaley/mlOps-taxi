@@ -11,10 +11,18 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from features import build_features
 from prometheus_fastapi_instrumentator import Instrumentator
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
 Instrumentator().instrument(app).expose(app)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def load_model():
     s3 = boto3.client('s3', region_name='us-east-1')
