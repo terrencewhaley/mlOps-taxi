@@ -1,5 +1,7 @@
 import sys
 import os
+import boto3
+import tempfile
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'training'))
 
@@ -8,11 +10,19 @@ import pandas as pd
 from fastapi import FastAPI
 from pydantic import BaseModel
 from features import build_features
+from prometheus_fastapi_instrumentator import Instrumentator
 
 app = FastAPI()
 
-MODEL_PATH = os.environ.get("MODEL_PATH", os.path.join(os.path.dirname(__file__), '..', 'artifacts', 'd17020d3-286b-47c9-b896-b8794b4c318c', 'model.joblib'))
-model = joblib.load(MODEL_PATH)
+Instrumentator().instrument(app).expose(app)
+
+def load_model():
+    s3 = boto3.client('s3', region_name='us-east-1')
+    with tempfile.NamedTemporaryFile(suffix='.joblib', delete=False) as f:
+        s3.download_fileobj('mlops-taxi-models-665012226357', 'models/model.joblib', f)
+        return joblib.load(f.name)
+
+model = load_model()
 
 class TripRequest(BaseModel):
     tpep_pickup_datetime: str

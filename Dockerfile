@@ -2,9 +2,11 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY training/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir fastapi uvicorn
+COPY training/requirements.txt training-requirements.txt
+RUN pip install --no-cache-dir -r training-requirements.txt
+
+COPY api/requirements.txt api-requirements.txt
+RUN pip install --no-cache-dir -r api-requirements.txt
 
 COPY training/ ./training/
 COPY api/ ./api/

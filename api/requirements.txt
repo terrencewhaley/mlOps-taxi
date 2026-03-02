@@ -1,0 +1,5 @@
+fastapi
+uvicorn
+pydantic
+prometheus-fastapi-instrumentator
+boto3

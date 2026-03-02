@@ -12,9 +12,9 @@ spec:
       labels:
         app: mlops-taxi
     spec:
+      serviceAccountName: mlops-taxi-sa
       containers:
         - name: mlops-taxi
-          image: mlops-taxi:latest
-          imagePullPolicy: Never
+          image: 665012226357.dkr.ecr.us-east-1.amazonaws.com/mlops-taxi:latest
           ports:
             - containerPort: 8000
