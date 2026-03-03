@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 
-const API_BASE =
-  "http://a6b9476f6ee6f40caa59a4ab0ad35470-1205729478.us-east-1.elb.amazonaws.com";
+const API_BASE = "";
 const MLFLOW_BASE = "http://127.0.0.1:5001";
 
 const NEIGHBORHOODS = {
@@ -112,7 +111,7 @@ export default function PortfolioDashboard() {
   const [distance, setDistance] = useState(2.5);
 
   useEffect(() => {
-    fetch(`${API_BASE}/health`)
+    fetch(`/api/health`)
       .then((r) => r.json())
       .then((d) => setApiStatus(d.status === "ok" ? "live" : "error"))
       .catch(() => setApiStatus("error"));
@@ -156,7 +155,7 @@ export default function PortfolioDashboard() {
     const d = NEIGHBORHOODS[dropoff];
     const datetime = `2016-01-15T${String(hour).padStart(2, "0")}:00:00`;
     try {
-      const res = await fetch(`${API_BASE}/predict`, {
+      const res = await fetch(`/api/predict`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
