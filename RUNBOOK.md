@@ -2,49 +2,69 @@
 
 ## Spin Up (run before interview)
 
-1. Create node group (15-20 min):
-   eksctl create nodegroup \
-    --cluster mlops-taxi \
-    --region us-east-1 \
-    --name standard-workers \
-    --node-type t3.small \
-    --nodes 2 \
-    --nodes-min 1 \
-    --nodes-max 3 \
-    --managed
+# 1. Delete stale IAM service account stack if it exists
 
-2. Associate OIDC provider:
-   eksctl utils associate-iam-oidc-provider --cluster mlops-taxi --region us-east-1 --approve
+aws cloudformation delete-stack \
+ --stack-name eksctl-mlops-taxi-addon-iamserviceaccount-default-mlops-taxi-sa \
+ --region us-east-1
 
-3. Check for and delete stale IAM service account CloudFormation  
-   stack first.
-   aws cloudformation delete-stack --stack-name eksctl-mlops-taxi-addon-iamserviceaccount-default-mlops-taxi-sa --region us-east-1
+# Wait 30 seconds for deletion to complete, then:
 
-4. Create service account:
-   eksctl create iamserviceaccount \
-    --cluster mlops-taxi \
-    --region us-east-1 \
-    --name mlops-taxi-sa \
-    --namespace default \
-    --attach-policy-arn arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess \
-    --approve \
-    --override-existing-serviceaccounts
+# 2. Create node group
 
-5. Point kubectl at cluster:
-   aws eks update-kubeconfig --region us-east-1 --name mlops-taxi
+eksctl create nodegroup \
+ --cluster mlops-taxi \
+ --region us-east-1 \
+ --name standard-workers \
+ --node-type t3.small \
+ --nodes 2 \
+ --nodes-min 1 \
+ --nodes-max 3 \
+ --managed
 
-6. Deploy:
-   kubectl apply -f k8s/deployment.yaml
-   kubectl apply -f k8s/service.yaml
+# 3. Associate OIDC provider
 
-7. Get load balancer URL (wait 2-3 min):
-   kubectl get services
+eksctl utils associate-iam-oidc-provider \
+ --cluster mlops-taxi \
+ --region us-east-1 \
+ --approve
 
-8. Update API_BASE in dashboard/src/PortfolioDashboard.jsx with new URL
+# 4. Create service account
 
-9. Rebuild dashboard:
-   cd dashboard && npm run build
+eksctl create iamserviceaccount \
+ --cluster mlops-taxi \
+ --region us-east-1 \
+ --name mlops-taxi-sa \
+ --namespace default \
+ --attach-policy-arn arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess \
+ --approve
 
-## Tear Down (run after interview)
+# 5. Update kubeconfig
 
-eksctl delete nodegroup --cluster mlops-taxi --region us-east-1 --name standard-workers
+aws eks update-kubeconfig --region us-east-1 --name mlops-taxi
+
+# 6. Deploy
+
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+
+# 7. Get new load balancer URL (wait 2-3 min)
+
+kubectl get services
+
+# 8. Update vercel.json with new load balancer URL and push
+
+git add . && git commit -m "Update load balancer URL" && git push
+
+## Teardown
+
+# 1. Delete node group first
+
+eksctl delete nodegroup \
+ --cluster mlops-taxi \
+ --region us-east-1 \
+ --name standard-workers
+
+# 2. Wait for completion, then verify
+
+kubectl get nodes
