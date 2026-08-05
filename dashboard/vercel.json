@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "http://adb5ece8be7894809bcbdd72596e7a08-806983666.us-east-1.elb.amazonaws.com/:path*"
+      "destination": "http://abc2111c6b9ac4bf99f57516a0eb54a6-670745741.us-east-1.elb.amazonaws.com/:path*"
     }
   ]
 }
