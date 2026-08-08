@@ -4,4 +4,7 @@ global:
 scrape_configs:
   - job_name: "mlops-taxi-api"
     static_configs:
-      - targets: ["host.docker.internal:8000"]
+      - targets:
+          [
+            "af123ca0e408c475692506602c656aa8-216589427.us-east-1.elb.amazonaws.com:80",
+          ]
