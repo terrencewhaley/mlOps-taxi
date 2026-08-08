@@ -38,6 +38,17 @@ eksctl create iamserviceaccount \
   --override-existing-serviceaccounts
 ```
 
+**Verify it actually landed before moving on** — `eksctl` can silently no-op if it thinks the
+service account already exists (see Known Issues below):
+
+```bash
+kubectl get serviceaccount -n default
+```
+
+You should see `mlops-taxi-sa` listed alongside `default`. If it's missing, stop and see
+**Known Issue #1** below before proceeding — deployments will fail later with a
+`serviceaccount not found` error if this isn't fixed now.
+
 ### 4. Update kubeconfig
 
 ```bash
@@ -73,15 +84,35 @@ Vercel will auto-redeploy in ~1 min. Verify the dashboard API status shows green
 
 ## Teardown (run after interview)
 
-### 1. Delete entire cluster (~15-20 min)
+### 1. Delete the IAM service account stack explicitly (before deleting the cluster)
+
+`eksctl delete cluster` does NOT reliably remove the `iamserviceaccount` CloudFormation
+stack if termination protection is enabled on it — this has caused a stale-stack issue on
+re-spin-up before (see Known Issue #1). Delete it explicitly first:
+
+```bash
+aws cloudformation update-termination-protection \
+  --stack-name eksctl-mlops-taxi-addon-iamserviceaccount-default-mlops-taxi-sa \
+  --no-enable-termination-protection \
+  --region us-east-1
+
+aws cloudformation delete-stack \
+  --stack-name eksctl-mlops-taxi-addon-iamserviceaccount-default-mlops-taxi-sa \
+  --region us-east-1
+```
+
+If the stack doesn't exist (e.g. first-ever teardown), the first command will just error
+harmlessly — safe to ignore and move on.
+
+### 2. Delete entire cluster (~15-20 min)
 
 ```bash
 eksctl delete cluster --name mlops-taxi --region us-east-1
 ```
 
-### This removes everything: nodes, control plane, load balancer, IAM service account, OIDC provider, and all CloudFormation stacks.
+### This removes the remaining resources: nodes, control plane, load balancer, and OIDC provider.
 
-### 2. Verify clean teardown
+### 3. Verify clean teardown
 
 ```bash
 # Cluster is gone
@@ -100,6 +131,47 @@ aws elbv2 describe-load-balancers --region us-east-1 \
 ```
 
 All three should return empty. After teardown you are only paying for ECR and S3 (effectively free).
+
+---
+
+## Known Issues
+
+### 1. `mlops-taxi-sa` service account silently not created ("no tasks")
+
+**Symptom:** Step 3's `eksctl create iamserviceaccount` command runs without error but prints
+`no tasks`, and `kubectl get serviceaccount -n default` shows only `default` — `mlops-taxi-sa`
+is missing. Deployments created later fail with:
+
+**Cause:** `eksctl` tracks IAM service accounts via a CloudFormation stack
+(`eksctl-mlops-taxi-addon-iamserviceaccount-default-mlops-taxi-sa`). If a previous cluster
+session's stack wasn't cleaned up (e.g. teardown didn't remove it, or it has termination
+protection enabled), `eksctl` sees the stack still exists and assumes the service account is
+already set up — even though the _cluster_ itself was deleted and rebuilt fresh, so the
+service account doesn't actually exist in the new cluster's Kubernetes API.
+
+**Fix:**
+
+```bash
+aws cloudformation update-termination-protection \
+  --stack-name eksctl-mlops-taxi-addon-iamserviceaccount-default-mlops-taxi-sa \
+  --no-enable-termination-protection \
+  --region us-east-1
+
+aws cloudformation delete-stack \
+  --stack-name eksctl-mlops-taxi-addon-iamserviceaccount-default-mlops-taxi-sa \
+  --region us-east-1
+
+# confirm it's actually gone before retrying — should return a "does not exist" error
+aws cloudformation describe-stacks \
+  --stack-name eksctl-mlops-taxi-addon-iamserviceaccount-default-mlops-taxi-sa \
+  --region us-east-1
+```
+
+Then re-run Step 3's `eksctl create iamserviceaccount` command — it should now actually create
+resources instead of printing `no tasks`. Verify with `kubectl get serviceaccount -n default`.
+
+**Permanent fix:** Teardown Step 1 (above) now deletes this stack explicitly before deleting
+the cluster, which should prevent this from recurring on future spin-ups.
 
 ---
 

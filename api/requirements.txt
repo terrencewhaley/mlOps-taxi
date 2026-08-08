@@ -3,3 +3,4 @@ uvicorn
 pydantic
 prometheus-fastapi-instrumentator
 boto3
+redis

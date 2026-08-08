@@ -18,3 +18,6 @@ spec:
           image: 665012226357.dkr.ecr.us-east-1.amazonaws.com/mlops-taxi:latest
           ports:
             - containerPort: 8000
+          env:
+            - name: REDIS_HOST
+              value: "mlops-taxi-redis.ima0as.0001.use1.cache.amazonaws.com"
